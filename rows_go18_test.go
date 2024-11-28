@@ -1,3 +1,4 @@
+//go:build go1.8
 // +build go1.8
 
 package sqlmock
@@ -9,6 +10,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/google/go-safeweb/safesql"
 )
 
 func TestQueryMultiRows(t *testing.T) {
@@ -26,7 +29,7 @@ func TestQueryMultiRows(t *testing.T) {
 		WithArgs(5).
 		WillReturnRows(rs1, rs2)
 
-	rows, err := db.Query("SELECT id, title FROM articles WHERE id = ?;SELECT name FROM users", 5)
+	rows, err := db.Query(safesql.New("SELECT id, title FROM articles WHERE id = ?;SELECT name FROM users"), 5)
 	if err != nil {
 		t.Errorf("error was not expected, but got: %v", err)
 	}
@@ -222,7 +225,7 @@ func TestNewColumnWithDefinition(t *testing.T) {
 		isQueryClosed := mQuery.RowsWillBeClosed()
 		isDbClosed := mock.ExpectClose()
 
-		query, _ := db.Query("SELECT test, number, when from dummy")
+		query, _ := db.Query(safesql.New("SELECT test, number, when from dummy"))
 
 		if false == isQuery.fulfilled() {
 			t.Error("Query is not executed")
@@ -302,7 +305,7 @@ func TestNewColumnWithDefinition(t *testing.T) {
 		isQueryClosed := mQuery.RowsWillBeClosed()
 		isDbClosed := mock.ExpectClose()
 
-		query, _ := db.Query("SELECT test, number, when from dummy")
+		query, _ := db.Query(safesql.New("SELECT test, number, when from dummy"))
 
 		if false == isQuery.fulfilled() {
 			t.Error("Query is not executed")

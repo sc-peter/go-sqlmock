@@ -6,6 +6,8 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"testing"
+
+	"github.com/google/go-safeweb/safesql"
 )
 
 const invalid = `☠☠☠ MEMORY OVERWRITTEN ☠☠☠ `
@@ -23,7 +25,7 @@ func ExampleRows() {
 
 	mock.ExpectQuery("SELECT").WillReturnRows(rows)
 
-	rs, _ := db.Query("SELECT")
+	rs, _ := db.Query(safesql.New("SELECT"))
 	defer rs.Close()
 
 	for rs.Next() {
@@ -53,7 +55,7 @@ func ExampleRows_rowError() {
 		RowError(1, fmt.Errorf("row error"))
 	mock.ExpectQuery("SELECT").WillReturnRows(rows)
 
-	rs, _ := db.Query("SELECT")
+	rs, _ := db.Query(safesql.New("SELECT"))
 	defer rs.Close()
 
 	for rs.Next() {
@@ -80,7 +82,7 @@ func ExampleRows_closeError() {
 	rows := NewRows([]string{"id", "title"}).CloseError(fmt.Errorf("close error"))
 	mock.ExpectQuery("SELECT").WillReturnRows(rows)
 
-	rs, _ := db.Query("SELECT")
+	rs, _ := db.Query(safesql.New("SELECT"))
 
 	// Note: that close will return error only before rows EOF
 	// that is a default sql package behavior. If you run rs.Next()
@@ -105,7 +107,7 @@ func ExampleRows_rawBytes() {
 
 	mock.ExpectQuery("SELECT").WillReturnRows(rows)
 
-	rs, _ := db.Query("SELECT")
+	rs, _ := db.Query(safesql.New("SELECT"))
 	defer rs.Close()
 
 	type scanned struct {
@@ -148,7 +150,7 @@ func ExampleRows_expectToBeClosed() {
 	rows := NewRows([]string{"id", "title"}).AddRow(1, "john")
 	mock.ExpectQuery("SELECT").WillReturnRows(rows).RowsWillBeClosed()
 
-	db.Query("SELECT")
+	db.Query(safesql.New("SELECT"))
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		fmt.Println("got error:", err)
@@ -175,7 +177,7 @@ func ExampleRows_customDriverValue() {
 
 	mock.ExpectQuery("SELECT").WillReturnRows(rows)
 
-	rs, _ := db.Query("SELECT")
+	rs, _ := db.Query(safesql.New("SELECT"))
 	defer rs.Close()
 
 	for rs.Next() {
@@ -207,7 +209,7 @@ func TestAllowsToSetRowsErrors(t *testing.T) {
 		RowError(1, fmt.Errorf("error"))
 	mock.ExpectQuery("SELECT").WillReturnRows(rows)
 
-	rs, err := db.Query("SELECT")
+	rs, err := db.Query(safesql.New("SELECT"))
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -243,7 +245,7 @@ func TestRowsCloseError(t *testing.T) {
 	rows := NewRows([]string{"id"}).CloseError(fmt.Errorf("close error"))
 	mock.ExpectQuery("SELECT").WillReturnRows(rows)
 
-	rs, err := db.Query("SELECT")
+	rs, err := db.Query(safesql.New("SELECT"))
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -268,7 +270,7 @@ func TestRowsClosed(t *testing.T) {
 	rows := NewRows([]string{"id"}).AddRow(1)
 	mock.ExpectQuery("SELECT").WillReturnRows(rows).RowsWillBeClosed()
 
-	rs, err := db.Query("SELECT")
+	rs, err := db.Query(safesql.New("SELECT"))
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -296,12 +298,12 @@ func TestQuerySingleRow(t *testing.T) {
 	mock.ExpectQuery("SELECT").WillReturnRows(rows)
 
 	var id int
-	if err := db.QueryRow("SELECT").Scan(&id); err != nil {
+	if err := db.QueryRow(safesql.New("SELECT")).Scan(&id); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
 	mock.ExpectQuery("SELECT").WillReturnRows(NewRows([]string{"id"}))
-	if err := db.QueryRow("SELECT").Scan(&id); err != sql.ErrNoRows {
+	if err := db.QueryRow(safesql.New("SELECT")).Scan(&id); err != sql.ErrNoRows {
 		t.Fatal("expected sql no rows error")
 	}
 
@@ -405,7 +407,7 @@ func TestRowsScanError(t *testing.T) {
 	r := NewRows([]string{"col1", "col2"}).AddRow("one", "two").AddRow("one", nil)
 	mock.ExpectQuery("SELECT").WillReturnRows(r)
 
-	rs, err := db.Query("SELECT")
+	rs, err := db.Query(safesql.New("SELECT"))
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -441,7 +443,7 @@ func TestCSVRowParser(t *testing.T) {
 
 	mock.ExpectQuery("SELECT").WillReturnRows(rs)
 
-	rw, err := db.Query("SELECT")
+	rw, err := db.Query(safesql.New("SELECT"))
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -486,7 +488,7 @@ func TestWrongNumberOfValues(t *testing.T) {
 		recover()
 	}()
 	mock.ExpectQuery("SELECT ID FROM TABLE").WithArgs(101).WillReturnRows(NewRows([]string{"ID"}).AddRow(101, "Hello"))
-	db.Query("SELECT ID FROM TABLE", 101)
+	db.Query(safesql.New("SELECT ID FROM TABLE"), 101)
 	// shouldn't reach here
 	t.Error("expected panic from query")
 }
@@ -522,7 +524,7 @@ func queryRowBytesInvalidatedByNext(t *testing.T, rows *Rows, scan func(*sql.Row
 	defer db.Close()
 	mock.ExpectQuery("SELECT").WillReturnRows(rows)
 
-	rs, err := db.Query("SELECT")
+	rs, err := db.Query(safesql.New("SELECT"))
 	if err != nil {
 		t.Fatalf("failed to query rows: %s", err)
 	}
@@ -568,7 +570,7 @@ func queryRowBytesNotInvalidatedByNext(t *testing.T, rows *Rows, scan func(*sql.
 	defer db.Close()
 	mock.ExpectQuery("SELECT").WillReturnRows(rows)
 
-	rs, err := db.Query("SELECT")
+	rs, err := db.Query(safesql.New("SELECT"))
 	if err != nil {
 		t.Fatalf("failed to query rows: %s", err)
 	}
@@ -617,7 +619,7 @@ func queryRowBytesInvalidatedByClose(t *testing.T, rows *Rows, scan func(*sql.Ro
 	defer db.Close()
 	mock.ExpectQuery("SELECT").WillReturnRows(rows)
 
-	rs, err := db.Query("SELECT")
+	rs, err := db.Query(safesql.New("SELECT"))
 	if err != nil {
 		t.Fatalf("failed to query rows: %s", err)
 	}
@@ -655,7 +657,7 @@ func queryRowBytesNotInvalidatedByClose(t *testing.T, rows *Rows, scan func(*sql
 	defer db.Close()
 	mock.ExpectQuery("SELECT").WillReturnRows(rows)
 
-	rs, err := db.Query("SELECT")
+	rs, err := db.Query(safesql.New("SELECT"))
 	if err != nil {
 		t.Fatalf("failed to query rows: %s", err)
 	}
@@ -711,7 +713,7 @@ func TestAddRows(t *testing.T) {
 	rows := NewRows([]string{"id", "name"}).AddRows(values...)
 	mock.ExpectQuery("SELECT").WillReturnRows(rows).RowsWillBeClosed()
 
-	rs, _ := db.Query("SELECT")
+	rs, _ := db.Query(safesql.New("SELECT"))
 	defer rs.Close()
 
 	for rs.Next() {
@@ -775,7 +777,7 @@ func ExampleRows_AddRows() {
 
 	mock.ExpectQuery("SELECT").WillReturnRows(rows)
 
-	rs, _ := db.Query("SELECT")
+	rs, _ := db.Query(safesql.New("SELECT"))
 	defer rs.Close()
 
 	for rs.Next() {

@@ -3,6 +3,8 @@ package sqlmock
 import (
 	"fmt"
 	"testing"
+
+	"github.com/google/go-safeweb/safesql"
 )
 
 // used for examples
@@ -12,7 +14,7 @@ func ExampleNewErrorResult() {
 	db, mock, _ := New()
 	result := NewErrorResult(fmt.Errorf("some error"))
 	mock.ExpectExec("^INSERT (.+)").WillReturnResult(result)
-	res, _ := db.Exec("INSERT something")
+	res, _ := db.Exec(safesql.New("INSERT something"))
 	_, err := res.LastInsertId()
 	fmt.Println(err)
 	// Output: some error

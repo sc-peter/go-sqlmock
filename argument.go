@@ -1,6 +1,10 @@
 package sqlmock
 
-import "database/sql/driver"
+import (
+	"database/sql/driver"
+
+	_ "github.com/google/go-safeweb/safesql"
+)
 
 // Argument interface allows to match
 // any argument in specific way when used with

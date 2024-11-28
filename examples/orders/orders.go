@@ -1,10 +1,11 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 
+	"github.com/google/go-safeweb/safesql"
+	"github.com/google/go-safeweb/safesql/uncheckedconversions"
 	"github.com/kisielk/sqlstruct"
 )
 
@@ -24,7 +25,7 @@ type Order struct {
 	Status      int     `sql:"status"`
 }
 
-func cancelOrder(id int, db *sql.DB) (err error) {
+func cancelOrder(id int, db *safesql.DB) (err error) {
 	tx, err := db.Begin()
 	if err != nil {
 		return
@@ -32,7 +33,7 @@ func cancelOrder(id int, db *sql.DB) (err error) {
 
 	var order Order
 	var user User
-	sql := fmt.Sprintf(`
+	uncheckedSql := fmt.Sprintf(`
 SELECT %s, %s
 FROM orders AS o
 INNER JOIN users AS u ON o.buyer_id = u.id
@@ -42,7 +43,8 @@ FOR UPDATE`,
 		sqlstruct.ColumnsAliased(user, "u"))
 
 	// fetch order to cancel
-	rows, err := tx.Query(sql, id)
+	// UNSAFE: don't do this in real code; not sure what's the purpose of the above but it's a test anyway
+	rows, err := tx.Query(uncheckedconversions.TrustedSQLStringFromStringKnownToSatisfyTypeContract(uncheckedSql), id)
 	if err != nil {
 		tx.Rollback()
 		return
@@ -77,7 +79,7 @@ FOR UPDATE`,
 	rows.Close() // manually close before other prepared statements
 
 	// refund order value
-	sql = "UPDATE users SET balance = balance + ? WHERE id = ?"
+	sql := safesql.New("UPDATE users SET balance = balance + ? WHERE id = ?")
 	refundStmt, err := tx.Prepare(sql)
 	if err != nil {
 		tx.Rollback()
@@ -92,7 +94,7 @@ FOR UPDATE`,
 
 	// update order status
 	order.Status = ORDER_CANCELLED
-	sql = "UPDATE orders SET status = ?, updated = NOW() WHERE id = ?"
+	sql = safesql.New("UPDATE orders SET status = ?, updated = NOW() WHERE id = ?")
 	orderUpdStmt, err := tx.Prepare(sql)
 	if err != nil {
 		tx.Rollback()
@@ -109,12 +111,12 @@ FOR UPDATE`,
 
 func main() {
 	// @NOTE: the real connection is not required for tests
-	db, err := sql.Open("mysql", "root:@/orders")
+	db, err := safesql.Open("mysql", "root:@/orders")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
-	err = cancelOrder(1, db)
+	err = cancelOrder(1, &db)
 	if err != nil {
 		log.Fatal(err)
 	}

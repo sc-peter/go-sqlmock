@@ -4,6 +4,8 @@ import (
 	"database/sql/driver"
 	"testing"
 	"time"
+
+	"github.com/google/go-safeweb/safesql"
 )
 
 type AnyTime struct{}
@@ -26,7 +28,7 @@ func TestAnyTimeArgument(t *testing.T) {
 		WithArgs("john", AnyTime{}).
 		WillReturnResult(NewResult(1, 1))
 
-	_, err = db.Exec("INSERT INTO users(name, created_at) VALUES (?, ?)", "john", time.Now())
+	_, err = db.Exec(safesql.New("INSERT INTO users(name, created_at) VALUES (?, ?)"), "john", time.Now())
 	if err != nil {
 		t.Errorf("error '%s' was not expected, while inserting a row", err)
 	}
@@ -47,7 +49,7 @@ func TestByteSliceArgument(t *testing.T) {
 	username := []byte("user")
 	mock.ExpectExec("INSERT INTO users").WithArgs(username).WillReturnResult(NewResult(1, 1))
 
-	_, err = db.Exec("INSERT INTO users(username) VALUES (?)", username)
+	_, err = db.Exec(safesql.New("INSERT INTO users(username) VALUES (?)"), username)
 	if err != nil {
 		t.Errorf("error '%s' was not expected, while inserting a row", err)
 	}

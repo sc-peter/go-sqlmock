@@ -1,10 +1,11 @@
 package sqlmock
 
 import (
-	"database/sql"
 	"database/sql/driver"
 	"fmt"
 	"sync"
+
+	"github.com/google/go-safeweb/safesql"
 )
 
 var pool *mockDriver
@@ -13,7 +14,7 @@ func init() {
 	pool = &mockDriver{
 		conns: make(map[string]*sqlmock),
 	}
-	sql.Register("sqlmock", pool)
+	safesql.Register("sqlmock", pool)
 }
 
 type mockDriver struct {
@@ -40,7 +41,7 @@ func (d *mockDriver) Open(dsn string) (driver.Conn, error) {
 // a specific driver.
 // Pings db so that all expectations could be
 // asserted.
-func New(options ...SqlMockOption) (*sql.DB, Sqlmock, error) {
+func New(options ...SqlMockOption) (*safesql.DB, Sqlmock, error) {
 	pool.Lock()
 	dsn := fmt.Sprintf("sqlmock_db_%d", pool.counter)
 	pool.counter++
@@ -67,7 +68,7 @@ func New(options ...SqlMockOption) (*sql.DB, Sqlmock, error) {
 //
 // It is not recommended to use this method, unless you
 // really need it and there is no other way around.
-func NewWithDSN(dsn string, options ...SqlMockOption) (*sql.DB, Sqlmock, error) {
+func NewWithDSN(dsn string, options ...SqlMockOption) (*safesql.DB, Sqlmock, error) {
 	pool.Lock()
 	if _, ok := pool.conns[dsn]; ok {
 		pool.Unlock()

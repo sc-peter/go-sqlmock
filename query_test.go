@@ -3,6 +3,8 @@ package sqlmock
 import (
 	"fmt"
 	"testing"
+
+	"github.com/google/go-safeweb/safesql"
 )
 
 func ExampleQueryMatcher() {
@@ -20,7 +22,7 @@ func ExampleQueryMatcher() {
 
 	mock.ExpectQuery("SELECT * FROM users").WillReturnRows(rows)
 
-	rs, err := db.Query("SELECT * FROM users")
+	rs, err := db.Query(safesql.New("SELECT * FROM users"))
 	if err != nil {
 		fmt.Println("failed to match expected query")
 		return
@@ -69,7 +71,7 @@ func TestQueryMatcherRegexp(t *testing.T) {
 		{"SELECT (.+) FROM users", "SELECT name, email FROM users WHERE id = ?", nil},
 		{"Select (.+) FROM users", "SELECT name, email FROM users WHERE id = ?", fmt.Errorf(`could not match actual sql: "SELECT name, email FROM users WHERE id = ?" with expected regexp "Select (.+) FROM users"`)},
 		{"SELECT (.+) FROM\nusers", "SELECT name, email\n FROM users\n WHERE id = ?", nil},
-                {"","SELECT from table", fmt.Errorf(`expectedSQL can't be empty`)},
+		{"", "SELECT from table", fmt.Errorf(`expectedSQL can't be empty`)},
 	}
 
 	for i, c := range cases {

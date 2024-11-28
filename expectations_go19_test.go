@@ -1,3 +1,4 @@
+//go:build go1.9
 // +build go1.9
 
 package sqlmock
@@ -5,12 +6,14 @@ package sqlmock
 import (
 	"context"
 	"testing"
+
+	"github.com/google/go-safeweb/safesql"
 )
 
 func TestCustomValueConverterExec(t *testing.T) {
 	db, mock, _ := New(ValueConverterOption(CustomConverter{}))
 	expectedQuery := "INSERT INTO tags \\(name,email,age,hobbies\\) VALUES \\(\\?,\\?,\\?,\\?\\)"
-	query := "INSERT INTO tags (name,email,age,hobbies) VALUES (?,?,?,?)"
+	query := safesql.New("INSERT INTO tags (name,email,age,hobbies) VALUES (?,?,?,?)")
 	name := "John"
 	email := "j@jj.j"
 	age := 12

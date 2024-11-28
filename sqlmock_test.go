@@ -10,11 +10,14 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/google/go-safeweb/safesql"
+	"github.com/google/go-safeweb/safesql/uncheckedconversions"
 )
 
-func cancelOrder(db *sql.DB, orderID int) error {
+func cancelOrder(db *safesql.DB, orderID int) error {
 	tx, _ := db.Begin()
-	_, _ = tx.Query("SELECT * FROM orders {0} FOR UPDATE", orderID)
+	_, _ = tx.Query(safesql.New("SELECT * FROM orders {0} FOR UPDATE"), orderID)
 	err := tx.Rollback()
 	if err != nil {
 		return err
@@ -67,7 +70,7 @@ func TestIssue14EscapeSQL(t *testing.T) {
 		WithArgs("A", "B").
 		WillReturnResult(NewResult(1, 1))
 
-	_, err = db.Exec("INSERT INTO mytable(a, b) VALUES (?, ?)", "A", "B")
+	_, err = db.Exec(safesql.New("INSERT INTO mytable(a, b) VALUES (?, ?)"), "A", "B")
 	if err != nil {
 		t.Errorf("error '%s' was not expected, while inserting a row", err)
 	}
@@ -109,7 +112,7 @@ func TestMockQuery(t *testing.T) {
 		WithArgs(5).
 		WillReturnRows(rs)
 
-	rows, err := db.Query("SELECT (.+) FROM articles WHERE id = ?", 5)
+	rows, err := db.Query(safesql.New("SELECT (.+) FROM articles WHERE id = ?"), 5)
 	if err != nil {
 		t.Errorf("error '%s' was not expected while retrieving mock rows", err)
 	}
@@ -163,7 +166,7 @@ func TestMockQueryTypes(t *testing.T) {
 		WithArgs(5).
 		WillReturnRows(rs)
 
-	rows, err := db.Query("SELECT (.+) FROM sales WHERE id = ?", 5)
+	rows, err := db.Query(safesql.New("SELECT (.+) FROM sales WHERE id = ?"), 5)
 	if err != nil {
 		t.Errorf("error '%s' was not expected while retrieving mock rows", err)
 	}
@@ -261,7 +264,7 @@ func TestPrepareExpectations(t *testing.T) {
 
 	mock.ExpectPrepare("SELECT (.+) FROM articles WHERE id = ?")
 
-	stmt, err := db.Prepare("SELECT (.+) FROM articles WHERE id = ?")
+	stmt, err := db.Prepare(safesql.New("SELECT (.+) FROM articles WHERE id = ?"))
 	if err != nil {
 		t.Errorf("error '%s' was not expected while creating a prepared statement", err)
 	}
@@ -286,7 +289,7 @@ func TestPrepareExpectations(t *testing.T) {
 	mock.ExpectPrepare("SELECT (.+) FROM articles WHERE id = ?").
 		WillReturnError(fmt.Errorf("Some DB error occurred"))
 
-	stmt, err = db.Prepare("SELECT id FROM articles WHERE id = ?")
+	stmt, err = db.Prepare(safesql.New("SELECT id FROM articles WHERE id = ?"))
 	if err == nil {
 		t.Error("error was expected while creating a prepared statement")
 	}
@@ -319,7 +322,7 @@ func TestPreparedQueryExecutions(t *testing.T) {
 		WithArgs(2).
 		WillReturnRows(rs2)
 
-	stmt, err := db.Prepare("SELECT id, title FROM articles WHERE id = ?")
+	stmt, err := db.Prepare(safesql.New("SELECT id, title FROM articles WHERE id = ?"))
 	if err != nil {
 		t.Errorf("error '%s' was not expected while creating a prepared statement", err)
 	}
@@ -379,7 +382,7 @@ func TestUnorderedPreparedQueryExecutions(t *testing.T) {
 	var id int
 	var name string
 
-	stmt, err := db.Prepare("SELECT id, name FROM authors WHERE id = ?")
+	stmt, err := db.Prepare(safesql.New("SELECT id, name FROM authors WHERE id = ?"))
 	if err != nil {
 		t.Errorf("error '%s' was not expected while creating a prepared statement", err)
 	}
@@ -403,7 +406,7 @@ func TestUnexpectedOperations(t *testing.T) {
 	defer db.Close()
 
 	mock.ExpectPrepare("SELECT (.+) FROM articles WHERE id = ?")
-	stmt, err := db.Prepare("SELECT id, title FROM articles WHERE id = ?")
+	stmt, err := db.Prepare(safesql.New("SELECT id, title FROM articles WHERE id = ?"))
 	if err != nil {
 		t.Errorf("error '%s' was not expected while creating a prepared statement", err)
 	}
@@ -444,7 +447,7 @@ func TestWrongExpectations(t *testing.T) {
 	var id int
 	var title string
 
-	err = db.QueryRow("SELECT id, title FROM articles WHERE id = ? FOR UPDATE", 5).Scan(&id, &title)
+	err = db.QueryRow(safesql.New("SELECT id, title FROM articles WHERE id = ? FOR UPDATE"), 5).Scan(&id, &title)
 	if err == nil {
 		t.Error("error was expected while querying row, since there begin transaction expectation is not fulfilled")
 	}
@@ -455,7 +458,7 @@ func TestWrongExpectations(t *testing.T) {
 		t.Errorf("an error '%s' was not expected when beginning a transaction", err)
 	}
 
-	err = db.QueryRow("SELECT id, title FROM articles WHERE id = ? FOR UPDATE", 5).Scan(&id, &title)
+	err = db.QueryRow(safesql.New("SELECT id, title FROM articles WHERE id = ? FOR UPDATE"), 5).Scan(&id, &title)
 	if err != nil {
 		t.Errorf("error '%s' was not expected while querying row, since transaction was started", err)
 	}
@@ -483,7 +486,7 @@ func TestExecExpectations(t *testing.T) {
 		WithArgs("hello").
 		WillReturnResult(result)
 
-	res, err := db.Exec("INSERT INTO articles (title) VALUES (?)", "hello")
+	res, err := db.Exec(safesql.New("INSERT INTO articles (title) VALUES (?)"), "hello")
 	if err != nil {
 		t.Errorf("error '%s' was not expected, while inserting a row", err)
 	}
@@ -525,7 +528,7 @@ func TestRowBuilderAndNilTypes(t *testing.T) {
 
 	mock.ExpectQuery("SELECT (.+) FROM sales").WillReturnRows(rs)
 
-	rows, err := db.Query("SELECT * FROM sales")
+	rows, err := db.Query(safesql.New("SELECT * FROM sales"))
 	if err != nil {
 		t.Errorf("error '%s' was not expected while retrieving mock rows", err)
 	}
@@ -615,7 +618,7 @@ func TestArgumentReflectValueTypeError(t *testing.T) {
 
 	mock.ExpectQuery("SELECT (.+) FROM sales").WithArgs(5.5).WillReturnRows(rs)
 
-	_, err = db.Query("SELECT * FROM sales WHERE x = ?", 5)
+	_, err = db.Query(safesql.New("SELECT * FROM sales WHERE x = ?"), 5)
 	if err == nil {
 		t.Error("expected error, but got none")
 	}
@@ -648,7 +651,8 @@ func TestGoroutineExecutionWithUnorderedExpectationMatching(t *testing.T) {
 	wg.Add(len(queries))
 	for table, args := range queries {
 		go func(tbl string, a []interface{}) {
-			if _, err := db.Exec("UPDATE "+tbl, a...); err != nil {
+			// UNSAFE: don't construct queries like this in real code; it's ok for this test
+			if _, err := db.Exec(uncheckedconversions.TrustedSQLStringFromStringKnownToSatisfyTypeContract("UPDATE "+tbl), a...); err != nil {
 				t.Errorf("error was not expected: %s", err)
 			}
 			wg.Done()
@@ -688,7 +692,8 @@ func ExampleSqlmock_goroutines() {
 	wg.Add(len(queries))
 	for table, args := range queries {
 		go func(tbl string, a []interface{}) {
-			if _, err := db.Exec("UPDATE "+tbl, a...); err != nil {
+			// UNSAFE: don't construct queries like this in real code; it's ok for this test
+			if _, err := db.Exec(uncheckedconversions.TrustedSQLStringFromStringKnownToSatisfyTypeContract("UPDATE "+tbl), a...); err != nil {
 				fmt.Println("error was not expected:", err)
 			}
 			wg.Done()
@@ -710,8 +715,8 @@ func TestRunExecsWithOrderedShouldNotMeetAllExpectations(t *testing.T) {
 	dbmock.ExpectExec("THE FIRST EXEC")
 	dbmock.ExpectExec("THE SECOND EXEC")
 
-	_, _ = db.Exec("THE FIRST EXEC")
-	_, _ = db.Exec("THE WRONG EXEC")
+	_, _ = db.Exec(safesql.New("THE FIRST EXEC"))
+	_, _ = db.Exec(safesql.New("THE WRONG EXEC"))
 
 	err := dbmock.ExpectationsWereMet()
 	if err == nil {
@@ -726,8 +731,8 @@ func TestRunQueriesWithOrderedShouldNotMeetAllExpectations(t *testing.T) {
 	dbmock.ExpectQuery("THE FIRST QUERY")
 	dbmock.ExpectQuery("THE SECOND QUERY")
 
-	_, _ = db.Query("THE FIRST QUERY")
-	_, _ = db.Query("THE WRONG QUERY")
+	_, _ = db.Query(safesql.New("THE FIRST QUERY"))
+	_, _ = db.Query(safesql.New("THE WRONG QUERY"))
 
 	err := dbmock.ExpectationsWereMet()
 	if err == nil {
@@ -740,8 +745,8 @@ func TestRunExecsWithExpectedErrorMeetsExpectations(t *testing.T) {
 	dbmock.ExpectExec("THE FIRST EXEC").WillReturnError(fmt.Errorf("big bad bug"))
 	dbmock.ExpectExec("THE SECOND EXEC").WillReturnResult(NewResult(0, 0))
 
-	_, _ = db.Exec("THE FIRST EXEC")
-	_, _ = db.Exec("THE SECOND EXEC")
+	_, _ = db.Exec(safesql.New("THE FIRST EXEC"))
+	_, _ = db.Exec(safesql.New("THE SECOND EXEC"))
 
 	err := dbmock.ExpectationsWereMet()
 	if err != nil {
@@ -753,7 +758,7 @@ func TestRunExecsWithNoArgsExpectedMeetsExpectations(t *testing.T) {
 	db, dbmock, _ := New()
 	dbmock.ExpectExec("THE FIRST EXEC").WithoutArgs().WillReturnResult(NewResult(0, 0))
 
-	_, err := db.Exec("THE FIRST EXEC", "foobar")
+	_, err := db.Exec(safesql.New("THE FIRST EXEC"), "foobar")
 	if err == nil {
 		t.Fatalf("expected error, but there wasn't any")
 	}
@@ -764,8 +769,8 @@ func TestRunQueryWithExpectedErrorMeetsExpectations(t *testing.T) {
 	dbmock.ExpectQuery("THE FIRST QUERY").WillReturnError(fmt.Errorf("big bad bug"))
 	dbmock.ExpectQuery("THE SECOND QUERY").WillReturnRows(NewRows([]string{"col"}).AddRow(1))
 
-	_, _ = db.Query("THE FIRST QUERY")
-	_, _ = db.Query("THE SECOND QUERY")
+	_, _ = db.Query(safesql.New("THE FIRST QUERY"))
+	_, _ = db.Query(safesql.New("THE SECOND QUERY"))
 
 	err := dbmock.ExpectationsWereMet()
 	if err != nil {
@@ -787,7 +792,7 @@ func TestEmptyRowSet(t *testing.T) {
 		WithArgs(5).
 		WillReturnRows(rs)
 
-	rows, err := db.Query("SELECT (.+) FROM articles WHERE id = ?", 5)
+	rows, err := db.Query(safesql.New("SELECT (.+) FROM articles WHERE id = ?"), 5)
 	if err != nil {
 		t.Errorf("error '%s' was not expected while retrieving mock rows", err)
 	}
@@ -819,7 +824,7 @@ func TestPrepareExpectationNotFulfilled(t *testing.T) {
 
 	mock.ExpectPrepare("^BADSELECT$")
 
-	if _, err := db.Prepare("SELECT"); err == nil {
+	if _, err := db.Prepare(safesql.New("SELECT")); err == nil {
 		t.Fatal("prepare should not match expected query string")
 	}
 
@@ -882,7 +887,7 @@ func TestUnexpectedExec(t *testing.T) {
 	}
 	mock.ExpectBegin()
 	db.Begin()
-	if _, err := db.Exec("SELECT 1"); err == nil {
+	if _, err := db.Exec(safesql.New("SELECT 1")); err == nil {
 		t.Error("an error was expected when calling exec, but got none")
 	}
 }
@@ -973,7 +978,7 @@ func TestPrepareExec(t *testing.T) {
 	}
 	mock.ExpectCommit()
 	tx, _ := db.Begin()
-	stmt, err := tx.Prepare("INSERT INTO ORDERS(ID, STATUS) VALUES (?, ?)")
+	stmt, err := tx.Prepare(safesql.New("INSERT INTO ORDERS(ID, STATUS) VALUES (?, ?)"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1003,7 +1008,7 @@ func TestPrepareQuery(t *testing.T) {
 	ep.ExpectQuery().WithArgs(101).WillReturnRows(NewRows([]string{"ID", "STATUS"}).AddRow(101, "Hello"))
 	mock.ExpectCommit()
 	tx, _ := db.Begin()
-	stmt, err := tx.Prepare("SELECT ID, STATUS FROM ORDERS WHERE ID = ?")
+	stmt, err := tx.Prepare(safesql.New("SELECT ID, STATUS FROM ORDERS WHERE ID = ?"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1085,7 +1090,7 @@ func TestPreparedStatementCloseExpectation(t *testing.T) {
 	ep := mock.ExpectPrepare("INSERT INTO ORDERS").WillBeClosed()
 	ep.ExpectExec().WillReturnResult(NewResult(1, 1))
 
-	stmt, err := db.Prepare("INSERT INTO ORDERS(ID, STATUS) VALUES (?, ?)")
+	stmt, err := db.Prepare(safesql.New("INSERT INTO ORDERS(ID, STATUS) VALUES (?, ?)"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1118,7 +1123,7 @@ func TestExecExpectationErrorDelay(t *testing.T) {
 		WillDelayFor(delay)
 
 	start := time.Now()
-	res, err := db.Exec("INSERT INTO articles (title) VALUES (?)", "hello")
+	res, err := db.Exec(safesql.New("INSERT INTO articles (title) VALUES (?)"), "hello")
 	stop := time.Now()
 
 	if res != nil {
@@ -1142,7 +1147,7 @@ func TestExecExpectationErrorDelay(t *testing.T) {
 	mock.ExpectExec("^INSERT INTO articles").WillReturnError(errors.New("fast fail"))
 
 	start = time.Now()
-	db.Exec("INSERT INTO articles (title) VALUES (?)", "hello")
+	db.Exec(safesql.New("INSERT INTO articles (title) VALUES (?)"), "hello")
 	stop = time.Now()
 
 	elapsed = stop.Sub(start)
@@ -1196,7 +1201,7 @@ func TestQueryWithTimeout(t *testing.T) {
 		WithArgs(5).
 		WillReturnRows(rs)
 
-	_, err = queryWithTimeout(10*time.Millisecond, db, "SELECT (.+) FROM articles WHERE id = ?", 5)
+	_, err = queryWithTimeout(10*time.Millisecond, db, safesql.New("SELECT (.+) FROM articles WHERE id = ?"), 5)
 	if err == nil {
 		t.Errorf("expecting query to time out")
 	}
@@ -1206,7 +1211,7 @@ func TestQueryWithTimeout(t *testing.T) {
 	}
 }
 
-func queryWithTimeout(t time.Duration, db *sql.DB, query string, args ...interface{}) (*sql.Rows, error) {
+func queryWithTimeout(t time.Duration, db *safesql.DB, query safesql.TrustedSQLString, args ...interface{}) (*sql.Rows, error) {
 	rowsChan := make(chan *sql.Rows, 1)
 	errChan := make(chan error, 1)
 

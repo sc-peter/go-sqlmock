@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+
+	"github.com/google/go-safeweb/safesql"
 )
 
 type CustomConverter struct{}
@@ -27,7 +29,7 @@ func ExampleExpectedExec() {
 	db, mock, _ := New()
 	result := NewErrorResult(fmt.Errorf("some error"))
 	mock.ExpectExec("^INSERT (.+)").WillReturnResult(result)
-	res, _ := db.Exec("INSERT something")
+	res, _ := db.Exec(safesql.New("INSERT something"))
 	_, err := res.LastInsertId()
 	fmt.Println(err)
 	// Output: some error
@@ -35,7 +37,7 @@ func ExampleExpectedExec() {
 
 func TestBuildQuery(t *testing.T) {
 	db, mock, _ := New()
-	query := `
+	query := safesql.New(`
 		SELECT
 			name,
 			email,
@@ -47,11 +49,11 @@ func TestBuildQuery(t *testing.T) {
 			and
 			address = 'Jakarta'
 
-	`
+	`)
 
-	mock.ExpectQuery(query)
-	mock.ExpectExec(query)
-	mock.ExpectPrepare(query)
+	mock.ExpectQuery(query.String())
+	mock.ExpectExec(query.String())
+	mock.ExpectPrepare(query.String())
 
 	db.QueryRow(query)
 	db.Exec(query)
@@ -64,7 +66,7 @@ func TestBuildQuery(t *testing.T) {
 
 func TestCustomValueConverterQueryScan(t *testing.T) {
 	db, mock, _ := New(ValueConverterOption(CustomConverter{}))
-	query := `
+	query := safesql.New(`
 		SELECT
 			name,
 			email,
@@ -76,11 +78,11 @@ func TestCustomValueConverterQueryScan(t *testing.T) {
 			and
 			address = 'Jakarta'
 
-	`
+	`)
 	expectedStringValue := "ValueOne"
 	expectedIntValue := 2
 	expectedArrayValue := []string{"Three", "Four"}
-	mock.ExpectQuery(query).WillReturnRows(mock.NewRows([]string{"One", "Two", "Three"}).AddRow(expectedStringValue, expectedIntValue, []string{"Three", "Four"}))
+	mock.ExpectQuery(query.String()).WillReturnRows(mock.NewRows([]string{"One", "Two", "Three"}).AddRow(expectedStringValue, expectedIntValue, []string{"Three", "Four"}))
 	row := db.QueryRow(query)
 	var stringValue string
 	var intValue int
@@ -123,7 +125,6 @@ func TestExecWithNoArgsAndWithArgsPanic(t *testing.T) {
 	mock := &sqlmock{}
 	mock.ExpectExec("^INSERT INTO user").WithArgs("John").WithoutArgs()
 }
-
 
 func TestQueryWillReturnsNil(t *testing.T) {
 	t.Parallel()

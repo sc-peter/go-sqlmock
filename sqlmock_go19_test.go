@@ -1,3 +1,4 @@
+//go:build go1.9
 // +build go1.9
 
 package sqlmock
@@ -7,6 +8,8 @@ import (
 	"database/sql/driver"
 	"errors"
 	"testing"
+
+	"github.com/google/go-safeweb/safesql"
 )
 
 func TestStatementTX(t *testing.T) {
@@ -22,7 +25,7 @@ func TestStatementTX(t *testing.T) {
 
 	prep.ExpectQuery().WithArgs(1).WillReturnError(errors.New("fast fail"))
 
-	stmt, err := db.Prepare("SELECT title, body FROM articles WHERE id = ?")
+	stmt, err := db.Prepare(safesql.New("SELECT title, body FROM articles WHERE id = ?"))
 	if err != nil {
 		t.Fatalf("unexpected error on prepare: %v", err)
 	}

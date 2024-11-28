@@ -1,8 +1,10 @@
 package main
 
-import "database/sql"
+import (
+	"github.com/google/go-safeweb/safesql"
+)
 
-func recordStats(db *sql.DB, userID, productID int64) (err error) {
+func recordStats(db *safesql.DB, userID, productID int64) (err error) {
 	tx, err := db.Begin()
 	if err != nil {
 		return
@@ -17,10 +19,10 @@ func recordStats(db *sql.DB, userID, productID int64) (err error) {
 		}
 	}()
 
-	if _, err = tx.Exec("UPDATE products SET views = views + 1"); err != nil {
+	if _, err = tx.Exec(safesql.New("UPDATE products SET views = views + 1")); err != nil {
 		return
 	}
-	if _, err = tx.Exec("INSERT INTO product_viewers (user_id, product_id) VALUES (?, ?)", userID, productID); err != nil {
+	if _, err = tx.Exec(safesql.New("INSERT INTO product_viewers (user_id, product_id) VALUES (?, ?)"), userID, productID); err != nil {
 		return
 	}
 	return
@@ -28,13 +30,13 @@ func recordStats(db *sql.DB, userID, productID int64) (err error) {
 
 func main() {
 	// @NOTE: the real connection is not required for tests
-	db, err := sql.Open("mysql", "root@/blog")
+	db, err := safesql.Open("mysql", "root@/blog")
 	if err != nil {
 		panic(err)
 	}
 	defer db.Close()
 
-	if err = recordStats(db, 1 /*some user id*/, 5 /*some product id*/); err != nil {
+	if err = recordStats(&db, 1 /*some user id*/, 5 /*some product id*/); err != nil {
 		panic(err)
 	}
 }

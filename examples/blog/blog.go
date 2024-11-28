@@ -1,13 +1,14 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"net/http"
+
+	"github.com/google/go-safeweb/safesql"
 )
 
 type api struct {
-	db *sql.DB
+	db *safesql.DB
 }
 
 type post struct {
@@ -17,7 +18,7 @@ type post struct {
 }
 
 func (a *api) posts(w http.ResponseWriter, r *http.Request) {
-	rows, err := a.db.Query("SELECT id, title, body FROM posts")
+	rows, err := a.db.Query(safesql.New("SELECT id, title, body FROM posts"))
 	if err != nil {
 		a.fail(w, "failed to fetch posts: "+err.Error(), 500)
 		return
@@ -47,11 +48,11 @@ func (a *api) posts(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	// @NOTE: the real connection is not required for tests
-	db, err := sql.Open("mysql", "root@/blog")
+	db, err := safesql.Open("mysql", "root@/blog")
 	if err != nil {
 		panic(err)
 	}
-	app := &api{db: db}
+	app := &api{db: &db}
 	http.HandleFunc("/posts", app.posts)
 	http.ListenAndServe(":8080", nil)
 }

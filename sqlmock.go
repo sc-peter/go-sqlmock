@@ -11,10 +11,11 @@ The driver allows to mock any sql driver method behavior.
 package sqlmock
 
 import (
-	"database/sql"
 	"database/sql/driver"
 	"fmt"
 	"time"
+
+	"github.com/google/go-safeweb/safesql"
 )
 
 // Sqlmock interface serves to create expectations
@@ -98,15 +99,15 @@ type sqlmock struct {
 	expected []expectation
 }
 
-func (c *sqlmock) open(options []SqlMockOption) (*sql.DB, Sqlmock, error) {
-	db, err := sql.Open("sqlmock", c.dsn)
+func (c *sqlmock) open(options []SqlMockOption) (*safesql.DB, Sqlmock, error) {
+	db, err := safesql.Open("sqlmock", c.dsn)
 	if err != nil {
-		return db, c, err
+		return &db, c, err
 	}
 	for _, option := range options {
 		err := option(c)
 		if err != nil {
-			return db, c, err
+			return &db, c, err
 		}
 	}
 	if c.converter == nil {
@@ -124,7 +125,7 @@ func (c *sqlmock) open(options []SqlMockOption) (*sql.DB, Sqlmock, error) {
 		c.monitorPings = false
 		defer func() { c.monitorPings = true }()
 	}
-	return db, c, db.Ping()
+	return &db, c, db.Ping()
 }
 
 func (c *sqlmock) ExpectClose() *ExpectedClose {

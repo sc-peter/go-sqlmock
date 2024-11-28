@@ -1,3 +1,4 @@
+//go:build go1.6
 // +build go1.6
 
 package sqlmock
@@ -5,6 +6,8 @@ package sqlmock
 import (
 	"errors"
 	"testing"
+
+	"github.com/google/go-safeweb/safesql"
 )
 
 func TestExpectedPreparedStatementCloseError(t *testing.T) {
@@ -22,7 +25,7 @@ func TestExpectedPreparedStatementCloseError(t *testing.T) {
 		t.Fatal("unexpected error while opening transaction:", err)
 	}
 
-	stmt, err := txn.Prepare("SELECT")
+	stmt, err := txn.Prepare(safesql.New("SELECT"))
 	if err != nil {
 		t.Fatal("unexpected error while preparing a statement:", err)
 	}
